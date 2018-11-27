@@ -25,7 +25,7 @@ def _save_content(file_dir, file_name, content):
         print('{file_name} already exist !'.format(file_name = file_name))
         return
     
-    with open(file_path, 'a') as out:
+    with open(file_path, 'w') as out:
         out.write(content)
         print('save content to ./{file_dir}/{file_name}.'.format(file_dir = file_dir, file_name = file_name))
 
