@@ -9,8 +9,8 @@ import mysql.connector
 
 DB_USER = 'root'
 DB_NAME = 'news'
-DB_HOST = '47.95.229.7'
-DB_PORT = 13306
+DB_HOST = '10.108.114.17'
+DB_PORT = 3306
 
 def _save_content(file_dir, file_name, content):
     '''
