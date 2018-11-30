@@ -67,6 +67,20 @@ def process(file_path):
         else:
             content = content.replace('�', '')
 
+    # ==============================
+    # 特殊字符替换
+    # ==============================
+            
+    if '&nbsp;' in content:
+        content = content.replace('&nbsp;', '');
+        
+    if '&gt;' in cnotent:
+        content = content.replace('&gt;', '');
+
+    # ==============================
+    # 新浪
+    # ==============================
+
     content = _process_sina(content)
 
     return content.strip()
