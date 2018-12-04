@@ -1,4 +1,5 @@
 *.txt
+!stop_words.txt
 *.zip
 __pycache__
 *.pyc
