@@ -21,6 +21,7 @@ from sklearn import metrics
 from sklearn import svm
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report
 
 
 CONTENT_TYPE = {
@@ -62,7 +63,7 @@ def readFile(new_foler_path, file):
     all_words_list
     全部样本 - 分词（筛选，关键词-类别）- 向量化 - 训练集、测试集分开 - 训练 - 评估
 """
-def TextProcessing(folder_path, key_words_path, test_size = 0.5):
+def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path, test_size = 0.5):
     class_list = []
     all_word_list = []
     folder_list = os.listdir(folder_path)
@@ -92,12 +93,22 @@ def TextProcessing(folder_path, key_words_path, test_size = 0.5):
                 if content is None:
                     continue
 
-                jieba.analyse.set_stop_words(key_words_path)
+                jieba.analyse.set_stop_words(stop_words_path)
+                jieba.load_userdict(user_dict_path)
+                jieba.suggest_freq(("道", "题"), tune = True)
+                jieba.suggest_freq(("有", "没有"),tune = True)
+                jieba.suggest_freq(("级", "新生"), tune = True)
+                jieba.suggest_freq(("中", "四人"), tune = True)
+                jieba.suggest_freq(("曝", "与"), tune = True)
+                jieba.suggest_freq(("身", "披"), tune = True)
+                jieba.suggest_freq(("爱滋病", "患"), tune = True)
+                jieba.suggest_freq(("平均", "收入"), tune = True)		
 
-                #筛选名词、人名、地名、机构团体名、动词
-                content_cut = jieba.analyse.extract_tags(content, topK = 30, allowPOS = {'n', 'nr', 'ns', 'nt', 'v'})
-                #content_cut = jieba.analyse.extract_tags(content, topK = 30)
-                if count < len(files)/2:
+
+                #筛选名词、机构团体名、动词
+                content_cut = jieba.analyse.extract_tags(content, topK = 30, allowPOS = {'n', 'nt', 'v'})
+               
+                if count < len(files) * test_size:
                     train_word_list.append(Convert2Str(content_cut))
                     train_class_list.append(CONTENT_TYPE[folder])
                 else:
@@ -110,7 +121,7 @@ def TextProcessing(folder_path, key_words_path, test_size = 0.5):
                     
                 #write the top_k_word into document
             
-                """with open(os.path.join(key_words_path, key_words_txt), 'a', encoding = 'utf-8') as top_k_word:
+                """with open((key_words_path, 'a', encoding = 'utf-8') as top_k_word:
                 top_k_word.write(str(content_cut))
                 top_k_word.write("---***分割线***---")
                 top_k_word.write("\n")"""
@@ -126,11 +137,11 @@ def Convert2Str(iter):
     return  target_str
 
 if __name__ == '__main__':
-    all_word_list, train_word_list, train_class_list, test_word_list, test_class_list = TextProcessing('./data/source-data', \
-			'./data/keywords/stop_words.txt', \
+    all_word_list, train_word_list, train_class_list, test_word_list, test_class_list = TextProcessing('./data/source-data','./stop_words.txt', 'user_dict.txt', \
+			'./key_words.txt', \
 			test_size = 0.5)
     
-    #贝叶斯 -- 0.8976
+    #贝叶斯 --
     count_vect = CountVectorizer()
     X_train_counts = count_vect.fit_transform(train_word_list)
     X_test_counts = count_vect.transform(test_word_list)
@@ -139,9 +150,14 @@ if __name__ == '__main__':
     X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
     clf = MultinomialNB().fit(X_train_tfidf, train_class_list)
     predicted = clf.predict(X_test_counts)
-    print("Bayes: ",np.mean(predicted==test_class_list))
+    print("Bayes_Avg_Precision: ",np.mean(predicted==test_class_list))
+    print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
+    print("Bayes confusion matrix:")
+    print(metrics.confusion_matrix(test_class_list, predicted))
+    
+    print("--------*****---------")
 
-    #SVM -- 0.9007
+    #SVM --
     svm_clf = Pipeline([
                        ('vect',CountVectorizer()),
                         ('tfidf', TfidfTransformer()),
@@ -151,5 +167,10 @@ if __name__ == '__main__':
                         ])
     svm_clf.fit(train_word_list, train_class_list)
     predicted = svm_clf.predict(test_word_list)
-    print("SVM:",np.mean(predicted == test_class_list))
+    print("SVM_Avg_Precision:",np.mean(predicted == test_class_list))
+    print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
+    print("SVM confusion matrix:")
+    print(metrics.confusion_matrix(test_class_list, predicted))
+
+
 
