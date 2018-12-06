@@ -46,8 +46,8 @@ def readFile(new_foler_path, file):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
-    except Exception as e:
-        print('Read {0} error {1}'.format(file_path, str(e.message)))
+    except UnicodeDecodeError as e:
+        print('Read {0} unicode decode error'.format(file_path))
 
     return None
 
