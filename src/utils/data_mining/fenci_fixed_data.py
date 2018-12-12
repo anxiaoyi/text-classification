@@ -76,6 +76,7 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
     test_class_list = []
     
     key_words_txt = "key_words.txt"
+    globalTestWordListIndex = 0
     
     for folder in folder_list:
         if os.path.isdir(os.path.join(folder_path,folder)):
@@ -101,7 +102,7 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                     break
 
                 read_file_num = read_file_num + 1
-
+                
                 # 读取文件
                 content = readFile(new_foler_path, file)
                 if content is None:
@@ -126,6 +127,8 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                     train_word_list.append(Convert2Str(content_cut))
                     train_class_list.append(CONTENT_TYPE[folder])
                 else:
+                    print("INFO: index {}, {}".format(globalTestWordListIndex, new_foler_path + '/' + file))
+                    globalTestWordListIndex = globalTestWordListIndex + 1
                     test_word_list.append(Convert2Str(content_cut))
                     test_class_list.append(CONTENT_TYPE[folder])
 
@@ -183,6 +186,12 @@ if __name__ == '__main__':
     svm_clf.fit(train_word_list, train_class_list)
     predicted = svm_clf.predict(test_word_list)
     print("SVM_Avg_Precision:",np.mean(predicted == test_class_list))
+
+    for index, value in enumerate(predicted):
+        if value != test_class_list[index]:
+            print(index, "predicted:", value, "actual: ", test_class_list[index])
+
+    print("predicted:", predicted)
     print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
     print("SVM confusion matrix:")
     print(metrics.confusion_matrix(test_class_list, predicted))
