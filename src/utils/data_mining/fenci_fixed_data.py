@@ -37,6 +37,8 @@ CONTENT_TYPE = {
     'wh':'文化'
 }
 
+test_word_file_name_list = []
+
 def readFile(new_foler_path, file):
     '''
     读取文件内容
@@ -72,11 +74,11 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
     
     train_word_list = []
     train_class_list = []
+
     test_word_list = []
     test_class_list = []
     
     key_words_txt = "key_words.txt"
-    globalTestWordListIndex = 0
     
     for folder in folder_list:
         if os.path.isdir(os.path.join(folder_path,folder)):
@@ -127,8 +129,7 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                     train_word_list.append(Convert2Str(content_cut))
                     train_class_list.append(CONTENT_TYPE[folder])
                 else:
-                    print("INFO: index {}, {}".format(globalTestWordListIndex, new_foler_path + '/' + file))
-                    globalTestWordListIndex = globalTestWordListIndex + 1
+                    test_word_file_name_list.append(new_foler_path + '/' + file)
                     test_word_list.append(Convert2Str(content_cut))
                     test_class_list.append(CONTENT_TYPE[folder])
 
@@ -141,7 +142,7 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                 with open(key_words_path, 'a', encoding='utf-8') as top_k_word:
                     top_k_word.write(new_foler_path + '/' + file + '\n')
                     top_k_word.write(str(content_cut))
-                    top_k_word.write("---***分割线***---")
+                    top_k_word.write("\n---***分割线***---")
                     top_k_word.write("\n")
 
     return all_word_list, train_word_list, train_class_list, test_word_list, test_class_list
@@ -189,9 +190,8 @@ if __name__ == '__main__':
 
     for index, value in enumerate(predicted):
         if value != test_class_list[index]:
-            print(index, "predicted:", value, "actual: ", test_class_list[index])
+            print(index, "predicted:", value, "actual: ", test_class_list[index], "file: ", test_word_file_name_list[index])
 
-    print("predicted:", predicted)
     print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
     print("SVM confusion matrix:")
     print(metrics.confusion_matrix(test_class_list, predicted))
