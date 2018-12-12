@@ -85,8 +85,22 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
             new_foler_path = os.path.join(folder_path,folder)
             files = os.listdir(new_foler_path)
             count = 1
+
+            # 测试环境下，默认读取 100 篇以便快速出结果
+            read_file_num = 0
+            MAX_FILE_NUM = 100
+            maxLen = MAX_FILE_NUM # len(files)
             
             for file in files:
+
+                # break
+                # 读取超过 100 篇就 break
+                if read_file_num > 100:
+                    read_file_num = 0
+                    print("INFO: read {0} finish".format(folder))
+                    break
+
+                read_file_num = read_file_num + 1
 
                 # 读取文件
                 content = readFile(new_foler_path, file)
@@ -108,7 +122,7 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                 #筛选名词、机构团体名、动词
                 content_cut = jieba.analyse.extract_tags(content, topK = 30, allowPOS = {'n', 'nt', 'v'})
                
-                if count < len(files) * test_size:
+                if count < maxLen * test_size:
                     train_word_list.append(Convert2Str(content_cut))
                     train_class_list.append(CONTENT_TYPE[folder])
                 else:
@@ -121,10 +135,11 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                     
                 #write the top_k_word into document
             
-                """with open((key_words_path, 'a', encoding = 'utf-8') as top_k_word:
-                top_k_word.write(str(content_cut))
-                top_k_word.write("---***分割线***---")
-                top_k_word.write("\n")"""
+                with open(key_words_path, 'a', encoding='utf-8') as top_k_word:
+                    top_k_word.write(new_foler_path + '/' + file + '\n')
+                    top_k_word.write(str(content_cut))
+                    top_k_word.write("---***分割线***---")
+                    top_k_word.write("\n")
 
     return all_word_list, train_word_list, train_class_list, test_word_list, test_class_list
 
@@ -171,6 +186,3 @@ if __name__ == '__main__':
     print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
     print("SVM confusion matrix:")
     print(metrics.confusion_matrix(test_class_list, predicted))
-
-
-
