@@ -91,22 +91,10 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
             files = os.listdir(new_foler_path)
             count = 1
 
-            # 测试环境下，默认读取 100 篇以便快速出结果
-            read_file_num = 0
-            MAX_FILE_NUM = 100
-            maxLen = MAX_FILE_NUM # len(files)
+            maxLen = len(files)
             
             for file in files:
 
-                # break
-                # 读取超过 100 篇就 break
-                if read_file_num > 100:
-                    read_file_num = 0
-                    print("INFO: read {0} finish".format(folder))
-                    break
-
-                read_file_num = read_file_num + 1
-                
                 # 读取文件
                 content = readFile(new_foler_path, file)
                 if content is None:
