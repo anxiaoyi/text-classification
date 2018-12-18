@@ -8,6 +8,7 @@ import os
 import random
 from collections import Counter
 import numpy as np
+import pickle
 
 import jieba
 import jieba.analyse
@@ -24,8 +25,6 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.externals import joblib
-
-
 
 CONTENT_TYPE = {
     'yl': '娱乐',
@@ -120,17 +119,15 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                 jieba.suggest_freq(("爱滋病", "患"), tune = True)
                 jieba.suggest_freq(("平均", "收入"), tune = True)		
                 
-                if count > 20:
-                    break
-
                 #筛选名词、机构团体名
                 content_cut = jieba.analyse.extract_tags(content, topK = 30, allowPOS = {'n', 'nt'})
                
                #maxLen * test_size
-                if count < 10:
+                if count < maxLen * test_size:
                     train_word_list.append(Convert2Str(content_cut))
                     train_class_list.append(CONTENT_TYPE[folder])
-                elif count > 10 and count < 20:
+                # elif count > 10 and count < 20:
+                else:
                     test_word_file_name_list.append(new_foler_path + '/' + file)
                     test_word_list.append(Convert2Str(content_cut))
                     test_class_list.append(CONTENT_TYPE[folder])
@@ -145,11 +142,21 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                     top_k_word.write("\n---***分割线***---")
                     top_k_word.write("\n")
 '''
-    writeFile('train_word_list.txt', str(train_word_list))
-    writeFile('train_class_list.txt', str(train_class_list))
-    writeFile('test_word_list.txt', str(test_word_list))
-    writeFile('test_class_list.txt', str(test_class_list))
+    saveListToFile(train_word_list, 'train_word_list.txt')
+    saveListToFile(train_class_list, 'train_class_list.txt')
+    saveListToFile(test_word_list, 'test_word_list.txt')
+    saveListToFile(test_class_list, 'test_class_list.txt')
     return None
+
+# save list to file
+def saveListToFile(l, file):
+    with open(file, "wb") as fp:
+        pickle.dump(l, fp)
+
+# read list from file
+def readListFromFile(file):
+    with open(file, "rb") as fp:
+        return pickle.load(fp)
 
 #将逗号分隔的中文改为用空格分隔连接的字符串
 def Convert2Str(iter):
@@ -171,12 +178,12 @@ if __name__ == '__main__':
         TextProcessing('./data/source-data','./stop_words.txt', 'user_dict.txt', './key_words.txt', test_size = 0.5)
     #train_word_list, train_class_list, test_word_list, test_class_list
 
-    test_word_list = loadData('./', 'test_word_list.txt')
-    test_class_list = loadData('./', 'test_class_list.txt')
+    test_word_list = readListFromFile('test_word_list.txt')
+    test_class_list = readListFromFile('test_class_list.txt')
 
     #train_word_lsit, train_class_list
-    train_word_list = loadData('./', 'train_word_list.txt')
-    train_class_list = loadData('./', 'train_class_list.txt')
+    train_word_list = readListFromFile('train_word_list.txt')
+    train_class_list = readListFromFile('train_class_list.txt')
 
 
     #贝叶斯
@@ -192,7 +199,7 @@ if __name__ == '__main__':
 
     clf = joblib.load('NB.model')
     predicted = clf.predict(X_test_counts)
-    print(predicted)
+
     print("Bayes_Avg_Precision: ",np.mean(predicted==test_class_list))
     print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
     print("Bayes confusion matrix:")
