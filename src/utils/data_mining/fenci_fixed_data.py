@@ -23,6 +23,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
+from sklearn.externals import joblib
 
 
 
@@ -53,6 +54,14 @@ def readFile(new_foler_path, file):
     except UnicodeDecodeError as e:
         print('Read {0} unicode decode error'.format(file_path))
 
+    return None
+
+def writeFile(file_path, content):
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(str(content))
+    except UnicodeDecodeError as e:
+        print('Write {0} unicode decode error'.format(file_path))
     return None
 
 """
@@ -110,22 +119,23 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                 jieba.suggest_freq(("身", "披"), tune = True)
                 jieba.suggest_freq(("爱滋病", "患"), tune = True)
                 jieba.suggest_freq(("平均", "收入"), tune = True)		
-
+                
+                if count > 20:
+                    break
 
                 #筛选名词、机构团体名
                 content_cut = jieba.analyse.extract_tags(content, topK = 30, allowPOS = {'n', 'nt'})
                
-                if count < maxLen * test_size:
+               #maxLen * test_size
+                if count < 10:
                     train_word_list.append(Convert2Str(content_cut))
                     train_class_list.append(CONTENT_TYPE[folder])
-                else:
+                elif count > 10 and count < 20:
                     test_word_file_name_list.append(new_foler_path + '/' + file)
                     test_word_list.append(Convert2Str(content_cut))
                     test_class_list.append(CONTENT_TYPE[folder])
 
                 count = count + 1
-                all_word_list.append(Convert2Str(content_cut))
-                class_list.append(CONTENT_TYPE[folder])
                     
                 #write the top_k_word into document
             
@@ -135,7 +145,11 @@ def TextProcessing(folder_path, stop_words_path, user_dict_path, key_words_path,
                     top_k_word.write("\n---***分割线***---")
                     top_k_word.write("\n")
 '''
-    return all_word_list, train_word_list, train_class_list, test_word_list, test_class_list
+    writeFile('train_word_list.txt', str(train_word_list))
+    writeFile('train_class_list.txt', str(train_class_list))
+    writeFile('test_word_list.txt', str(test_word_list))
+    writeFile('test_class_list.txt', str(test_class_list))
+    return None
 
 #将逗号分隔的中文改为用空格分隔连接的字符串
 def Convert2Str(iter):
@@ -145,24 +159,26 @@ def Convert2Str(iter):
         target_str = target_str + ' '
     return  target_str
 
-#cross-validation
-def svm_cross_validation(train_x, train_y):
-    model = SVC(kernel='rbf', probability=True)
-    param_grid = {'C': [1e-3, 1e-2, 1e-1, 1, 10, 100, 1000], 'gamma': [0.001, 0.0001]}
-    grid_search = GridSearchCV(model, param_grid, n_jobs = 8, verbose=1)
-    grid_search.fit(train_x, train_y)
-    best_parameters = grid_search.best_estimator_.get_params()
-    for para, val in list(best_parameters.items()):
-        print(para, val)
-    model = SVC(kernel='rbf', C=best_parameters['C'], gamma=best_parameters['gamma'], probability=True)
-    model.fit(train_x, train_y)
-    return model
+def loadData(folder_path, infile):
+    f = readFile(folder_path,infile)
+    f_split = f[1: len(f) - 1].split(',')
+    f_list = list(f_split)
+    
+    return f_list
 
 if __name__ == '__main__':
-    all_word_list, train_word_list, train_class_list, test_word_list, test_class_list = TextProcessing('./data/source-data','./stop_words.txt', 'user_dict.txt', \
-			'./key_words.txt', \
-			test_size = 0.5)
-    
+    if os.path.exists('train_word_list.txt') == False:
+        TextProcessing('./data/source-data','./stop_words.txt', 'user_dict.txt', './key_words.txt', test_size = 0.5)
+    #train_word_list, train_class_list, test_word_list, test_class_list
+
+    test_word_list = loadData('./', 'test_word_list.txt')
+    test_class_list = loadData('./', 'test_class_list.txt')
+
+    #train_word_lsit, train_class_list
+    train_word_list = loadData('./', 'train_word_list.txt')
+    train_class_list = loadData('./', 'train_class_list.txt')
+
+
     #贝叶斯
     count_vect = CountVectorizer()
     X_train_counts = count_vect.fit_transform(train_word_list)
@@ -171,7 +187,12 @@ if __name__ == '__main__':
     tfidf_transformer = TfidfTransformer()
     X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
     clf = MultinomialNB().fit(X_train_tfidf, train_class_list)
+    if os.path.exists('NB.model') == False:
+        joblib.dump(clf, 'NB.model', compress=3)
+
+    clf = joblib.load('NB.model')
     predicted = clf.predict(X_test_counts)
+    print(predicted)
     print("Bayes_Avg_Precision: ",np.mean(predicted==test_class_list))
     print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
     print("Bayes confusion matrix:")
@@ -181,53 +202,19 @@ if __name__ == '__main__':
 
     #SVM
     svm_clf = Pipeline([
-                       ('vect',CountVectorizer()),
+                        ('vect',CountVectorizer()),
                         ('tfidf', TfidfTransformer()),
                         ('clf',SGDClassifier(loss='hinge',penalty='l2',
-                                            alpha =1e-3,random_state=42,
-                                            max_iter=5,tol=None)),
+                                             alpha =1e-3,random_state=42,
+                                             max_iter=5,tol=None)),
                         ])
     svm_clf.fit(train_word_list, train_class_list)
+    if os.path.exists('SVM.model') == False:
+        joblib.dump(clf, 'SVM.model', compress=3)
+
+    clf_svm = joblib.load('SVM.model')
     predicted = svm_clf.predict(test_word_list)
     print("SVM_Avg_Precision:",np.mean(predicted == test_class_list))
-
-    '''for index, value in enumerate(predicted):
-        if value != test_class_list[index]:
-            print(index, "predicted:", value, "actual: ", test_class_list[index], "file: ", test_word_file_name_list[index])'''
-
     print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
     print("SVM confusion matrix:")
     print(metrics.confusion_matrix(test_class_list, predicted))
-
-    print("--------*****---------")
-    
-    #SVM - corss-validatin
-    pipeline = Pipeline([
-                         ('vect', CountVectorizer()),
-                         ('tfidf', TfidfTransformer()),
-                         ('clf', SGDClassifier()),
-                         ])
-    
-    parameters = {
-    'vect__max_df': (0.5, 0.75, 1.0),
-    # 'vect__max_features': (None, 5000, 10000, 50000),
-    'vect__ngram_range': ((1, 1), (1, 2)),  # unigrams or bigrams
-    # 'tfidf__use_idf': (True, False),
-    # 'tfidf__norm': ('l1', 'l2'),
-    'clf__max_iter': (5,),
-    'clf__alpha': (0.00001, 0.000001),
-    'clf__penalty': ('l2', 'elasticnet'),
-    # 'clf__max_iter': (10, 50, 80),
-    }
-    grid_search = GridSearchCV(pipeline, parameters, cv=5,
-                               n_jobs=-1, verbose=1)
-    grid_search.fit(train_word_list, train_class_list)
-    
-    #svm_rbf = svm_cross_validation(train_word_list, train_class_list)
-    
-    predicted = grid_search.predict(test_word_list)
-    print("SVM_grid_search_Precision:",np.mean(predicted == test_class_list))
-    print(classification_report(test_class_list, predicted, target_names = CONTENT_TYPE.values()))
-    print("SVM_grid_search confusion matrix:")
-    print(metrics.confusion_matrix(test_class_list, predicted))
-
